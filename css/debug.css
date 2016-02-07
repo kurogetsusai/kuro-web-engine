@@ -1,0 +1,76 @@
+div#kuro-debug-log {
+	display: block;
+	margin: 30px 0 0;
+	padding: 25px 50px;
+	background: #191919;
+	background-image: url("../img/debug-bg.png");
+	box-shadow: inset 0 5px 10px #111;
+}
+
+div#kuro-debug-log > table {
+	width: 100%;
+	line-height: 1.2;
+	border-spacing: 16px 0;
+}
+
+div#kuro-debug-log,
+div#kuro-debug-log > table {
+	font-family: "Ubuntu Mono", monospace;
+	font-size: 1em;
+	color: #f3f3f3;
+}
+
+div#kuro-debug-log pre {
+	white-space: pre-wrap;
+}
+
+div#kuro-debug-log td {
+	vertical-align: top;
+}
+
+div#kuro-debug-log td:first-child {
+	width: 5em;
+}
+
+div#kuro-debug-log td:last-child {
+	width: 8em;
+	text-align: center;
+}
+
+span.kuro-debug-method {
+	color: #888;
+}
+
+span.kuro-debug-status-ok {
+	color: lime;
+}
+
+span.kuro-debug-status-warning {
+	color: orange;
+}
+
+span.kuro-debug-status-notice {
+	color: cyan;
+}
+
+span.kuro-debug-status-error {
+	color: red;
+}
+
+span.kuro-debug-status-deprecated {
+	color: yellow;
+}
+
+span.kuro-debug-status-ok,
+span.kuro-debug-status-warning,
+span.kuro-debug-status-notice,
+span.kuro-debug-status-error,
+span.kuro-debug-status-deprecated {
+	width: 6em;
+	display: inline-block;
+}
+
+span.kuro-debug-env {
+	color: cyan;
+	font-weight: bold;
+}
