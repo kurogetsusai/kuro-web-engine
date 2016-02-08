@@ -89,8 +89,16 @@ class User
 	public function getActions()
 	{
 		return array(
-			array('/^logout/', $this, 'logOut')
+			array('/^logout$/', $this, 'actionLogOut')
 		);
+	}
+
+	public function actionLogOut($action)
+	{
+		$this->logOut();
+
+		# true = reload the page to get a new URL without that param
+		return false;
 	}
 
 	public function getNick()
@@ -329,7 +337,7 @@ class User
 
 	public function logOut()
 	{
-		echo 'TEST LOGOUT';
+		echo 'TEST LOGOUT'; # TODO replace this placeholder with an actual code
 	}
 }
 

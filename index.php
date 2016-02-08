@@ -68,10 +68,8 @@ $db->connect(DATABASE_HOST, DATABASE_BASE, DATABASE_USER, DATABASE_PASS);
 # users
 $user = new \Kuro\User($loader, $db);
 
-// XXX TMP actions test
-$tmp = $user->getActions();
-echo $tmp[0][1]->$tmp[0][2]();
-
+# actions
+$loader->addActions($user->getActions());
 $loader->processActions();
 $loader->setLanguage($loader->remindLanguage());
 

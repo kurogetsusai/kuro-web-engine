@@ -14,9 +14,9 @@ define('DEBUG_STATUS_DEPRECATED'   , 6);
 
 class Loader
 {
-	private $action;
+	private $action; # array
 
-	public $param; // actually actions TODO
+	public $param;
 
 	public function __construct($kuroLocation, $cmd, $debugEnabled = false)
 	{
@@ -42,33 +42,59 @@ class Loader
 		}
 
 		$this->action = array(
-			'/^lang-/', $this, 'changeLanguage' // TODO
+			array('/^lang-/', $this, 'actionChangeLanguage')
 		);
 	}
 
-	public function processActions() // TODO
+	public function addActions($newActions)
 	{
+		$this->action = array_merge($this->action, $newActions);
+	}
+
+	public function processActions()
+	{
+		# TODO this should check all params, not just the last one
+		# then it will be necessary to fix reloading, bc unset removes only the last param
+		# (line 74: unset($this->param[count($this->param) - 1]);)
+
 		# all params starting with 'set=' are supposed to be processed
 		if (preg_match('/^set=/', end($this->param))) {
+			# trim the leading 'set='
 			$action = mb_substr(end($this->param), 4);
 
-			# change language
-			if (preg_match('/^lang-/', $action)) {
-				$lang = mb_substr($action, 5);
-				if ($lang != $this->getLanguage() && in_array($lang, $this->getLanguageList())) {
-					$this->setLanguage($lang);
-					$this->rememberLanguage();
+			# cycle through all actions
+			foreach ($this->action as $item) {
+				# if action matches
+				if (preg_match($item[0], $action)) {
+					# run action's function
+					# if it returns true, then remove the last 'set=' param and reload the page
+					# otherwise don't
+					if ($item[1]->$item[2]($action)) {
+						# remove that param
+						unset($this->param[count($this->param) - 1]);
+						# reload
+						$cmd = implode('/', $this->param);
+						header('Location: ' . GLOBAL_ROOT . '/' . $cmd);
+						exit();
+					}
 				}
-
-				# remove that param
-				unset($this->param[count($this->param) - 1]);
-				$cmd = implode('/', $this->param);
-				header('Location: ' . GLOBAL_ROOT . '/' . $cmd);
-				exit();
-			} elseif (preg_match('/^logout/', $action)) {
-				
 			}
 		}
+	}
+
+	public function actionChangeLanguage($action)
+	{
+		# example input: lang-en
+		#                lang-szl
+
+		$lang = mb_substr($action, 5);
+		if ($lang != $this->getLanguage() && in_array($lang, $this->getLanguageList())) {
+			$this->setLanguage($lang);
+			$this->rememberLanguage();
+		}
+
+		# true = reload the page to get a new URL without that param
+		return true;
 	}
 
 	public function loadModule($module, $require = true)
