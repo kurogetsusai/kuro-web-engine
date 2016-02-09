@@ -1,6 +1,4 @@
 <?php
-// XXX REWRITING
-
 namespace Kuro;
 
 class User
@@ -19,13 +17,14 @@ class User
 
 	# state
 	private $logged_in = false;
+	private $login_msg = null;
 
 	# these should be known after login
 	private $sessions  = [];
 	private $id        = null;
 	private $nick      = null;
-	private $salt      = null;
 	private $passhash  = null;
+	private $salt      = null;
 
 	# optional data
 	private $password  = null;
@@ -98,12 +97,175 @@ class User
 		$this->logOut();
 
 		# true = reload the page to get a new URL without that param
-		return false;
+		return true;
+	}
+
+	public function isLoggedIn()
+	{
+		return $this->logged_in;
+	}
+
+	public function getLoginMsg()
+	{
+		return $this->login_msg;
 	}
 
 	public function getNick()
 	{
 		return $this->nick;
+	}
+
+	public function processRequestData()
+	{
+		# This function tries to log in using session.
+		# If it doesn't work, then it tries to log in using cookie.
+		# If it doesn't work either, it tries to log in using POST data.
+		# And then, if user is still not logged in, it tries to register
+		# a new user using POST data.
+		# It doesn't return anything.
+
+		# logout has a higher priority and is handled by a loader action, which reloads
+		# the page after logoutso when logging out, so if the logout flag is set,
+		# it never reaches this point, so I just ignore logout
+
+		$login_status = false;
+// TODO localize these strings
+		# try to log in using session
+		if (
+			!$login_status &&
+			$this->use_session &&
+			isset($_SESSION['user_id']) &&
+			isset($_SESSION['session_hash'])
+		) {
+			switch ($this->logInUsingSession($_SESSION['user_id'], $_SESSION['session_hash'])) {
+			case 0:
+				$login_status = true;
+				break;
+			case 1:
+				$this->login_msg = array('error', 'Can\'t log in – session expired!');
+				$login_status = false;
+				break;
+			case 2:
+				$this->login_msg = array('error', 'Can\'t log in – user with that session does not exists! Try logging in manually.');
+				$login_status = false;
+				break;
+			default:
+				$this->login_msg = array('error', 'Can\'t log in! Try again later or contact us if the problem persists.');
+				$login_status = false;
+			}
+		}
+
+		# try to log in using cookie
+		if (
+			!$login_status &&
+			$this->use_cookie &&
+			isset($_COOKIE['user_id']) &&
+			isset($_COOKIE['session_hash'])
+		) {
+			switch ($this->logInUsingCookie($_COOKIE['user_id'], $_COOKIE['session_hash'])) {
+			case 0:
+				$login_status = true;
+				break;
+			case 1:
+				$this->login_msg = array('error', 'Can\'t log in – session expired!');
+				$login_status = false;
+				break;
+			case 2:
+				$this->login_msg = array('error', 'Can\'t log in – user with that session does not exists! Try logging in manually.');
+				$login_status = false;
+				break;
+			default:
+				$this->login_msg = array('error', 'Can\'t log in! Try again later or contact us if the problem persists.');
+				$login_status = false;
+			}
+		}
+
+		# try to log in using password
+		if (
+			!$login_status &&
+			isset($_POST['login_nick']) &&
+			isset($_POST['login_password'])
+		) {
+			switch ($this->logInUsingPassword($_POST['login_nick'], $_POST['login_password'])) {
+			case 0:
+				$login_status = true;
+				break;
+			case 1:
+				$this->login_msg = array('error', 'Can\'t log in – wrong nick!');
+				$login_status = false;
+				break;
+			case 2:
+				$this->login_msg = array('error', 'Can\'t log in – wrong password!');
+				$login_status = false;
+				break;
+			case 3:
+				$this->login_msg = array('warning', 'Successfully logged in, but cannot save a user session to the database. This usually means we have problems connecting to our database. Try again later or contact us if the problem persists.');
+				$login_status = true;
+				break;
+			default:
+				$this->login_msg = array('error', 'Can\'t log in! Try again later or contact us if the problem persists.');
+				$login_status = false;
+			}
+		}
+
+		# try to register a new user
+		if (
+			!$login_status &&
+			isset($_POST['register_nick']) &&
+			isset($_POST['register_password']) &&
+			isset($_POST['register_password_retype']) &&
+			isset($_POST['register_email'])
+		) {
+			if ($_POST['register_password'] != $_POST['register_password_retype']) {
+				$this->login_msg = array('error', 'Can\'t register a new user – passwords are not the same!');
+				$login_status = false;
+			} else {
+				switch ($this->register($_POST['register_nick'], $_POST['register_password'], $_POST['register_email'])) {
+				case 0:
+					$login_status = true;
+					break;
+				case 1:
+					$this->login_msg = array('error', 'Can\'t register a new user – nick contains illegal characters!');
+					$login_status = false;
+					break;
+				case 2:
+					$this->login_msg = array('error', 'Can\'t register a new user – password in empty!');
+					$login_status = false;
+					break;
+				case 3:
+					$this->login_msg = array('error', 'Can\'t register a new user – e-mail address is not valid!');
+					$login_status = false;
+					break;
+				case 10:
+					$this->login_msg = array('error', 'Can\'t register a new user – a user with this nick already exists!');
+					$login_status = false;
+					break;
+				case 20:
+					$this->login_msg = array('error', 'Can\'t register a new user – cannot update user data. Try again later or contact us if the problem persists.');
+					$login_status = false;
+					break;
+				case 30:
+					$this->login_msg = array('error', 'Can\'t register a new user – a database error. Try again later or contact us if the problem persists.');
+					$login_status = false;
+					break;
+				case 100:
+					$this->login_msg = array('warning', 'Successfully registered a new user, but cannot log in – wrong nick. Try logging in manually or contact us if the problem persists.');
+					$login_status = true;
+					break;
+				case 200:
+					$this->login_msg = array('warning', 'Successfully registered a new user, but cannot log in – wrong password. Try logging in manually or contact us if the problem persists.');
+					$login_status = true;
+					break;
+				case 300:
+					$this->login_msg = array('warning', 'Successfully registered a new user and logged in, but cannot save a user session to the database. Try logging in manually or contact us if the problem persists.');
+					$login_status = true;
+					break;
+				default:
+					$this->login_msg = array('error', 'Can\'t register a new user! Try again later or contact us if the problem persists.');
+					$login_status = false;
+				}
+			}
+		}
 	}
 
 	public function register($nick, $password, $email)
@@ -114,11 +276,7 @@ class User
 		#   2 - wrong password (empty)
 		#   3 - wrong email
 		#  X0 - inherited from saveUserToBase(), multiplied by 10
-		# X00 - inherited from logIn(), multiplied by 100
-
-		$this->nick     = $nick;
-		$this->password = $password;
-		$this->email    = $email;
+		# X00 - inherited from logInUsingPassword(), multiplied by 100
 
 		# validate nick
 		if (preg_match("/\//", $nick) or preg_match("/^set=/", $nick)) {
@@ -135,10 +293,14 @@ class User
 		# validate email
 		if ($email == '' or strpos($email, '@') === false) {
 			$this->loader->debugLog(__METHOD__, 'Cannot register user `' . $nick . '`, e-mail `' . $email . '` is not considered valid.', DEBUG_STATUS_WARNING);
-			return 2;
+			return 3;
 		}
 
 		# everything's ok, register user
+		$this->nick     = $nick;
+		$this->password = $password;
+		$this->email    = $email;
+
 		$this->generateNewSalt();
 		$this->calcPassHash();
 		$ret = $this->saveUserToDb() * 10;
@@ -147,6 +309,13 @@ class User
 		if ($ret === 0) {
 			$this->loader->debugLog(__METHOD__, 'Registered user `' . $nick . '`.', DEBUG_STATUS_OK);
 			$ret = $this->logInUsingPassword($this->nick, $this->password) * 100;
+		}
+
+		# clear user data
+		if (!$this->isLoggedIn()) {
+			$this->nick     = null;
+			$this->password = null;
+			$this->email    = null;
 		}
 
 		return $ret;
@@ -284,6 +453,8 @@ class User
 
 		# check login data
 		if (!password_verify($this->getSaltedPassword(), $this->passhash)) {
+			$this->nick     = null;
+			$this->password = null;
 			$this->id       = null;
 			$this->salt     = null;
 			$this->passhash = null;
@@ -335,13 +506,143 @@ class User
 		return 0;
 	}
 
+	public function logInUsingSession($user_id, $session_hash)
+	{
+		# Return codes:
+		# 0 - OK
+		# 1 - invalid session
+		# 2 - user doesn't exist
+
+		# check if session is valid
+		$this->sessions[] = new \Kuro\Session($this->loader,
+		                                      $this->db,
+		                                      $this->session_time);
+		if (end($this->sessions)->checkSession($user_id, $session_hash) === 0) {
+			# get user info from the db
+			$stmt = $this->db->base->prepare('SELECT id, nick, pass, salt FROM user WHERE id = :id LIMIT 1');
+			$stmt->execute(array(':id' => $user_id));
+			$row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+			# if there is no such user, then the session should be removed
+			# (it may happen if a user has been removed, but his sessions are still valid)
+			if (!isset($row['nick'])) {
+				$stmt = $this->db->base->prepare('DELETE FROM session WHERE user_id = :user_id AND hash = :hash');
+				$stmt->execute(array(':user_id' => $user_id,
+				                     ':hash'    => $session_hash));
+
+				unset($this->sessions[count($this->sessions) - 1]);
+
+				if ($this->use_session) {
+					unset($_SESSION['user_id']);
+					unset($_SESSION['session_hash']);
+				}
+
+				$this->loader->debugLog(__METHOD__, 'Cannot log in as user ID `' . $user_id . '`, user does not exist.', DEBUG_STATUS_WARNING);
+				return 2;
+			}
+
+			# get user data
+			$this->id        = $user_id;
+			$this->nick      = $row['nick'];
+			$this->passhash  = $row['pass'];
+			$this->salt      = $row['salt'];
+			$this->logged_in = true;
+
+			$this->loader->debugLog(__METHOD__, 'Logged in as user `' . $this->nick . '` using session.', DEBUG_STATUS_OK);
+			return 0;
+		} else {
+			# session is not valid, just remove it
+			unset($this->sessions[count($this->sessions) - 1]);
+
+			if ($this->use_session) {
+				unset($_SESSION['user_id']);
+				unset($_SESSION['session_hash']);
+			}
+
+			$this->loader->debugLog(__METHOD__, 'Cannot log in as user ID `' . $user_id . '`, invalid session.', DEBUG_STATUS_WARNING);
+			return 1;
+		}
+	}
+
+	public function logInUsingCookie($user_id, $session_hash)
+	{
+		# Return codes:
+		# inherited from logInUsingSession()
+
+		# copy cookie data to session
+		$_SESSION['user_id']      = $user_id;
+		$_SESSION['session_hash'] = $session_hash;
+		$this->loader->debugLog(__METHOD__, 'Restored session data from cookie.', DEBUG_STATUS_OK);
+
+		# try to log in using session
+		$ret = $this->logInUsingSession($user_id, $session_hash);
+		switch ($ret) {
+		case 0:
+			break;
+		case 1:
+		case 2:
+		default:
+			# if cannot log in, then we don't need that garbage in cookies
+			if ($this->use_cookie) {
+				unset($_COOKIE['user_id']);
+				unset($_COOKIE['session_hash']);
+				setcookie('user_id'     , '', time() - 1);
+				setcookie('session_hash', '', time() - 1);
+			}
+			$this->loader->debugLog(__METHOD__, 'Removed invalid session cookie.', DEBUG_STATUS_OK);
+		}
+
+		# return what logInUsingSession() returns
+		return $ret;
+	}
+
 	public function logOut()
 	{
-		echo 'TEST LOGOUT'; # TODO replace this placeholder with an actual code
+		if ($this->isLoggedIn()) {
+			if ($this->use_session) {
+				# load user_id and session_hash, and remove then from session (and cookie)
+				if ($this->use_cookie) {
+					$user_id      = $_SESSION['user_id']      ?: $_COOKIE['user_id'];
+					$session_hash = $_SESSION['session_hash'] ?: $_COOKIE['session_hash'];
+					unset($_COOKIE['user_id']);
+					unset($_COOKIE['session_hash']);
+					setcookie('user_id'     , '', time() - 1);
+					setcookie('session_hash', '', time() - 1);
+				} else {
+					$user_id      = $_SESSION['user_id'];
+					$session_hash = $_SESSION['session_hash'];
+				}
+				unset($_SESSION['user_id']);
+				unset($_SESSION['session_hash']);
+
+				# check if session is valid; if it is, then delete it from the db
+				$this->sessions[] = new \Kuro\Session($this->loader,
+				                                      $this->db,
+				                                      $this->session_time);
+				if (end($this->sessions)->checkSession($user_id, $session_hash) === 0) {
+					$stmt = $this->db->base->prepare('DELETE FROM session WHERE user_id = :user_id AND hash = :hash');
+					$stmt->execute(array(':user_id' => $user_id,
+					                     ':hash'    => $session_hash));
+				}
+			}
+
+			# clear user data
+			$this->logged_in = false;
+			$this->login_msg = null;
+			$this->sessions  = [];
+			$this->id        = null;
+			$this->nick      = null;
+			$this->passhash  = null;
+			$this->salt      = null;
+			$this->password  = null;
+			$this->email     = null;
+		}
 	}
 }
 
 class Session {
+	# PRIVATE ##############################
+
 	# constructor data
 	private $loader;
 	private $db;
@@ -367,6 +668,8 @@ class Session {
 			$this->user_id . $this->user_nick . $this->user_salt . $this->loader->getRandomAsciiString(16)
 		);
 	}
+
+	# PUBLIC ###############################
 
 	public function __construct($loader, $db, $session_time)
 	{
@@ -423,6 +726,32 @@ class Session {
 		}
 
 		return 0;
+	}
+
+	public function checkSession($user_id, $session_hash)
+	{
+		# Return codes:
+		# 0 - OK
+		# 1 - invalid session
+		# 2 - database error
+
+		$stmt = $this->db->base->prepare('SELECT COUNT(*) FROM session WHERE user_id = :user_id AND hash = :hash AND expire >= FROM_UNIXTIME(:expire)');
+		$stmt->execute(array(':user_id' => $user_id,
+		                     ':hash'    => $session_hash,
+		                     ':expire'  => time()));
+		$row = $stmt->fetchColumn();
+
+		if ($row === false) {
+			$this->loader->debugLog(__METHOD__, 'Database error: bad query.', DEBUG_STATUS_WARNING);
+			return 2;
+		} elseif ($row === '0') {
+			$this->loader->debugLog(__METHOD__, 'Session `' . $session_hash . '` is invalid.', DEBUG_STATUS_WARNING);
+			return 1;
+		} else {
+			$this->user_id = $user_id;
+			$this->hash    = $session_hash;
+			return 0;
+		}
 	}
 }
 

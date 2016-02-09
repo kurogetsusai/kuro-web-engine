@@ -1,0 +1,20 @@
+RewriteEngine on
+
+# redirect www.domain to domain
+# TODO
+
+# do not rewrite files
+RewriteCond %{REQUEST_FILENAME} -s [OR]
+RewriteCond %{REQUEST_FILENAME} -l [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# remove slash from the end
+RewriteRule ^(.*)/$ /~sai/$1 [R=301,L]
+
+# semantic url
+RewriteRule ^(.*)$		/~sai/index.php?cmd=$1 [L]
+#RewriteRule ^index.php?([^/]*)/(.*)$	index.php?$1&param[]=$2
+#RewriteRule ^([^/]*)$		/~sai/index.php?param[]=$1 [L]
+#RewriteRule ^([^/]*)/([^/]*)$	/~sai/index.php?param[]=$1&param[]=$2 [L]
+

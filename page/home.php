@@ -9,18 +9,9 @@ global $user;
 <?php $loader->loadModule('inc/global-head'); ?>
 </head>
 <body>
-	<header>
-		<div id="top-bar">
-			<span class="top-bar-item"><a href="<?= GLOBAL_ROOT ?>/user/kurogetsusai">Sai Kurogetsu</a></span>
-			<span class="top-bar-item"><img id="top-bar-item-menu" src="<?= GLOBAL_ROOT ?>/img/icon-menu.png" alt="Menu"></span>
-		</div>
-	</header>
-	<div id="page">
-<?php
-# cookies warning...
-if (COOKIE_ENABLE)
-	echo '<br><br>cookies are good for you<br><br>';
-?>
+<?php $loader->loadTranslatedModule('inc/global-header'); ?>
+	<main id="page">
+<?php $loader->loadTranslatedModule('inc/global-info-box'); ?>
 		<h1><?= sprintf('{t}PAGE_HOME_HEADER{/t}', $user->getNick() == '' ? 'guest' : $user->getNick()) ?></h1>
 
 		<h2>{t}PAGE_HOME_HEADER_LOGIN{/t}</h2>
@@ -38,37 +29,16 @@ if (COOKIE_ENABLE)
 			<input type="text" name="register_email" placeholder="{t}FORM_REGISTER_EMAIL{/t}"><br>
 			<input type="submit" value="{t}FORM_REGISTER_SUBMIT{/t}">
 		</form>
-<?php
-function getRandomStringd($length = 10)
-{
-	$str = '';
-	while (strlen($str) < $length) {
-		$char = mcrypt_create_iv(1, MCRYPT_DEV_URANDOM);
-		if (ord($char) > 32 && ord($char) < 127)
-			$str .= $char;
-	}
 
-	return $str;
-}
-
-function getRandomString($length = 10, $include_space = false)
-{
-	$str = '';
-	while (--$length >= 0)
-		$str .= chr(mt_rand($include_space ? 32 : 33, 126));
-
-	return $str;
-}
-
-	echo getRandomString();
-?>
-		<h1><?php #include KURO_LOCATION . '/inc/lorem-ipsum-line.php' ?></h1>
-		<p><?php #include KURO_LOCATION . '/inc/lorem-ipsum-paragraph.php' ?></p>
-		<p><?php #include KURO_LOCATION . '/inc/lorem-ipsum-paragraph.php' ?></p>
-		<p><?php #include KURO_LOCATION . '/inc/lorem-ipsum-paragraph.php' ?></p>
+		<h1><?php include KURO_LOCATION . '/inc/lorem-ipsum-line.php' ?></h1>
+		<p><?php include KURO_LOCATION . '/inc/lorem-ipsum-paragraph.php' ?></p>
 
 		<a href="<?= CURRENT_PATH ?>/set=lang-en">lang-en</a>
 		<a href="<?= CURRENT_PATH ?>/set=lang-szl">lang-szl</a>
+		<br>
+		<a href="<?= CURRENT_PATH ?>/set=logout">logout</a>
+		<br>
+		<a href="<?= GLOBAL_ROOT ?>/admin">admin</a>
 
 		<pre>
 <?php
@@ -84,10 +54,9 @@ $test2 = 'world';
 
 echo $test1 ?: $test2;
 
-#echo geoip_country_code_by_name('127.0.0.1');
-
 ?>
 		</pre>
-	</div>
+	</main>
+<?php $loader->loadTranslatedModule('inc/global-footer'); ?>
 </body>
 </html>

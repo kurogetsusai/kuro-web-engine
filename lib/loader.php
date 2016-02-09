@@ -14,7 +14,7 @@ define('DEBUG_STATUS_DEPRECATED'   , 6);
 
 class Loader
 {
-	private $action; # array
+	private $actions = [];
 
 	public $param;
 
@@ -41,14 +41,14 @@ class Loader
 			ini_set('html_errors'   , 0);
 		}
 
-		$this->action = array(
+		$this->actions = array(
 			array('/^lang-/', $this, 'actionChangeLanguage')
 		);
 	}
 
 	public function addActions($newActions)
 	{
-		$this->action = array_merge($this->action, $newActions);
+		$this->actions = array_merge($this->actions, $newActions);
 	}
 
 	public function processActions()
@@ -63,7 +63,7 @@ class Loader
 			$action = mb_substr(end($this->param), 4);
 
 			# cycle through all actions
-			foreach ($this->action as $item) {
+			foreach ($this->actions as $item) {
 				# if action matches
 				if (preg_match($item[0], $action)) {
 					# run action's function
@@ -358,22 +358,26 @@ class Loader
 		foreach ($this->debug_log as $item) {
 			echo '<tr>';
 			echo '<td>[' . number_format($item['time'], 6) . ']</td>';
-			echo '<td>' . $item['message'] . ' <span class="kuro-debug-method">(' . $item['method'] . ')</span></td>';
 			switch ($item['status']) {
 			case DEBUG_STATUS_OK:
+				echo '<td class="kuro-debug-status-ok">' . $item['message'] . ' <span class="kuro-debug-method">(' . $item['method'] . ')</span></td>';
 				echo '<td>[<span class="kuro-debug-status-ok">OK</span>]</td>';
 				break;
 			case DEBUG_STATUS_NOTICE:
+				echo '<td class="kuro-debug-status-notice">' . $item['message'] . ' <span class="kuro-debug-method">(' . $item['method'] . ')</span></td>';
 				echo '<td>[<span class="kuro-debug-status-notice">NOTICE</span>]</td>';
 				break;
 			case DEBUG_STATUS_WARNING:
+				echo '<td class="kuro-debug-status-warning">' . $item['message'] . ' <span class="kuro-debug-method">(' . $item['method'] . ')</span></td>';
 				echo '<td>[<span class="kuro-debug-status-warning">WARNING</span>]</td>';
 				break;
 			case DEBUG_STATUS_ERROR:
 			case DEBUG_STATUS_ERROR_NOT_DIE:
+				echo '<td class="kuro-debug-status-error">' . $item['message'] . ' <span class="kuro-debug-method">(' . $item['method'] . ')</span></td>';
 				echo '<td>[<span class="kuro-debug-status-error">ERROR</span>]</td>';
 				break;
 			case DEBUG_STATUS_DEPRECATED:
+				echo '<td class="kuro-debug-status-deprecated">' . $item['message'] . ' <span class="kuro-debug-method">(' . $item['method'] . ')</span></td>';
 				echo '<td>[<span class="kuro-debug-status-deprecated">DEPRECATED</span>]</td>';
 				break;
 			default:
