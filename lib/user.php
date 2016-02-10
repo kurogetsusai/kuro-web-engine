@@ -17,18 +17,32 @@ class User
 
 	# state
 	private $logged_in = false;
-	private $login_msg = null;
+	private $request_data_result = null;
 
 	# these should be known after login
 	private $sessions  = [];
 	private $id        = null;
-	private $nick      = null;
+	private $nick      = null;    # required when registering a new user
 	private $passhash  = null;
 	private $salt      = null;
+	private $name      = null;
 
 	# optional data
-	private $password  = null;
-	private $email     = null;
+	private $password  = null;    # required when registering a new user
+	private $email     = null;    # required when registering a new user
+
+	# Want to add a new optional data?
+	#   - Just grep for "email" and do the same with your new variable.
+	# Want to add a new required data?
+	#   - Add an optional data.
+	#   - Add a new validation code to register().
+	#   - Add new exceptions to processRequestData(), inc/global-info-box
+	#     and loc/* files. Don't forget to update register()'s comment.
+	# Want to add a new data, which should be known after each login?
+	#   - Add an optional or required data.
+	#   - Make sure your new data is loaded by logInUsingPassword() and
+	#     logInUsingSession().
+	# Don't forget to update user UI and loc/* files! And the database, ofc.
 
 	private function generateNewSalt()
 	{
@@ -105,14 +119,24 @@ class User
 		return $this->logged_in;
 	}
 
-	public function getLoginMsg()
+	public function getRequestDataResult()
 	{
-		return $this->login_msg;
+		return $this->request_data_result;
 	}
 
 	public function getNick()
 	{
 		return $this->nick;
+	}
+
+	public function getEmail()
+	{
+		return $this->email;
+	}
+
+	public function getName()
+	{
+		return $this->name;
 	}
 
 	public function processRequestData()
@@ -124,12 +148,14 @@ class User
 		# a new user using POST data.
 		# It doesn't return anything.
 
-		# logout has a higher priority and is handled by a loader action, which reloads
-		# the page after logoutso when logging out, so if the logout flag is set,
-		# it never reaches this point, so I just ignore logout
+		# logout has a higher priority and is handled by a loader
+		# action, which reloads the page after logout so when logging
+		# out, so if the logout flag is set, it never reaches this
+		# point, so I just ignore logout
 
 		$login_status = false;
-// TODO localize these strings
+		$result = 0;
+
 		# try to log in using session
 		if (
 			!$login_status &&
@@ -142,16 +168,13 @@ class User
 				$login_status = true;
 				break;
 			case 1:
-				$this->login_msg = array('error', 'Can\'t log in – session expired!');
-				$login_status = false;
+				$result = 11;
 				break;
 			case 2:
-				$this->login_msg = array('error', 'Can\'t log in – user with that session does not exists! Try logging in manually.');
-				$login_status = false;
+				$result = 12;
 				break;
 			default:
-				$this->login_msg = array('error', 'Can\'t log in! Try again later or contact us if the problem persists.');
-				$login_status = false;
+				$result = 10;
 			}
 		}
 
@@ -167,16 +190,13 @@ class User
 				$login_status = true;
 				break;
 			case 1:
-				$this->login_msg = array('error', 'Can\'t log in – session expired!');
-				$login_status = false;
+				$result = 101;
 				break;
 			case 2:
-				$this->login_msg = array('error', 'Can\'t log in – user with that session does not exists! Try logging in manually.');
-				$login_status = false;
+				$result = 102;
 				break;
 			default:
-				$this->login_msg = array('error', 'Can\'t log in! Try again later or contact us if the problem persists.');
-				$login_status = false;
+				$result = 100;
 			}
 		}
 
@@ -191,20 +211,17 @@ class User
 				$login_status = true;
 				break;
 			case 1:
-				$this->login_msg = array('error', 'Can\'t log in – wrong nick!');
-				$login_status = false;
+				$result = 1001;
 				break;
 			case 2:
-				$this->login_msg = array('error', 'Can\'t log in – wrong password!');
-				$login_status = false;
+				$result = 1002;
 				break;
 			case 3:
-				$this->login_msg = array('warning', 'Successfully logged in, but cannot save a user session to the database. This usually means we have problems connecting to our database. Try again later or contact us if the problem persists.');
+				$result = 1003;
 				$login_status = true;
 				break;
 			default:
-				$this->login_msg = array('error', 'Can\'t log in! Try again later or contact us if the problem persists.');
-				$login_status = false;
+				$result = 1000;
 			}
 		}
 
@@ -220,55 +237,50 @@ class User
 				$this->login_msg = array('error', 'Can\'t register a new user – passwords are not the same!');
 				$login_status = false;
 			} else {
-				switch ($this->register($_POST['register_nick'], $_POST['register_password'], $_POST['register_email'])) {
+				switch ($this->register($_POST['register_nick'], $_POST['register_password'], $_POST['register_email'], $_POST['register_name'])) {
 				case 0:
 					$login_status = true;
 					break;
 				case 1:
-					$this->login_msg = array('error', 'Can\'t register a new user – nick contains illegal characters!');
-					$login_status = false;
+					$result = 10001;
 					break;
 				case 2:
-					$this->login_msg = array('error', 'Can\'t register a new user – password in empty!');
-					$login_status = false;
+					$result = 10002;
 					break;
 				case 3:
-					$this->login_msg = array('error', 'Can\'t register a new user – e-mail address is not valid!');
-					$login_status = false;
+					$result = 10003;
 					break;
 				case 10:
-					$this->login_msg = array('error', 'Can\'t register a new user – a user with this nick already exists!');
-					$login_status = false;
+					$result = 10004;
 					break;
 				case 20:
-					$this->login_msg = array('error', 'Can\'t register a new user – cannot update user data. Try again later or contact us if the problem persists.');
-					$login_status = false;
+					$result = 10005;
 					break;
 				case 30:
-					$this->login_msg = array('error', 'Can\'t register a new user – a database error. Try again later or contact us if the problem persists.');
-					$login_status = false;
+					$result = 10006;
 					break;
 				case 100:
-					$this->login_msg = array('warning', 'Successfully registered a new user, but cannot log in – wrong nick. Try logging in manually or contact us if the problem persists.');
+					$result = 10007;
 					$login_status = true;
 					break;
 				case 200:
-					$this->login_msg = array('warning', 'Successfully registered a new user, but cannot log in – wrong password. Try logging in manually or contact us if the problem persists.');
+					$result = 10008;
 					$login_status = true;
 					break;
 				case 300:
-					$this->login_msg = array('warning', 'Successfully registered a new user and logged in, but cannot save a user session to the database. Try logging in manually or contact us if the problem persists.');
+					$result = 10009;
 					$login_status = true;
 					break;
 				default:
-					$this->login_msg = array('error', 'Can\'t register a new user! Try again later or contact us if the problem persists.');
-					$login_status = false;
+					$result = 10000;
 				}
 			}
 		}
+
+		$this->request_data_result = $login_status ? 0 : $result;
 	}
 
-	public function register($nick, $password, $email)
+	public function register($nick, $password, $email, $name)
 	{
 		# Return codes:
 		#   0 - OK
@@ -296,10 +308,13 @@ class User
 			return 3;
 		}
 
+		# name is optional and it doesn't need to be validated anyway
+
 		# everything's ok, register user
 		$this->nick     = $nick;
 		$this->password = $password;
 		$this->email    = $email;
+		$this->name     = $name;
 
 		$this->generateNewSalt();
 		$this->calcPassHash();
@@ -316,6 +331,7 @@ class User
 			$this->nick     = null;
 			$this->password = null;
 			$this->email    = null;
+			$this->name     = null;
 		}
 
 		return $ret;
@@ -339,6 +355,7 @@ class User
 				if ($this->passhash !== null) $data_array[':pass']  = 'pass';
 				if ($this->salt     !== null) $data_array[':salt']  = 'salt';
 				if ($this->email    !== null) $data_array[':email'] = 'email';
+				if ($this->name     !== null) $data_array[':name']  = 'name';
 
 				$sql_columns = '';
 				$sql_values  = '';
@@ -355,7 +372,8 @@ class User
 					array(':nick'  => $this->nick,
 					      ':pass'  => $this->passhash,
 					      ':salt'  => $this->salt,
-					      ':email' => $this->email),
+					      ':email' => $this->email,
+					      ':name'  => $this->name),
 					$data_array
 				));
 
@@ -384,6 +402,7 @@ class User
 				if ($this->passhash !== null) $data_array[':pass']  = 'pass';
 				if ($this->salt     !== null) $data_array[':salt']  = 'salt';
 				if ($this->email    !== null) $data_array[':email'] = 'email';
+				if ($this->name     !== null) $data_array[':name']  = 'name';
 				$sql_columns_and_values = '';
 				foreach ($data_array as $key => $value)
 					$sql_columns_and_values .= $value . '=' . $key . ', ';
@@ -397,7 +416,8 @@ class User
 					      ':nick'  => $this->nick,
 					      ':pass'  => $this->passhash,
 					      ':salt'  => $this->salt,
-					      ':email' => $this->email),
+					      ':email' => $this->email,
+					      ':name'  => $this->name),
 					$data_array
 				));
 
@@ -434,7 +454,7 @@ class User
 		# 3 - OK, but cannot save session to database
 
 		# check if user with that nick exists
-		$stmt = $this->db->base->prepare('SELECT id, nick, pass, salt FROM user WHERE LOWER(nick) = LOWER(:nick) LIMIT 1');
+		$stmt = $this->db->base->prepare('SELECT id, nick, pass, salt, name FROM user WHERE LOWER(nick) = LOWER(:nick) LIMIT 1');
 		$stmt->execute(array(':nick' => $nick));
 		$row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
@@ -448,16 +468,18 @@ class User
 		$this->nick     = $nick;
 		$this->password = $password;
 		$this->id       = $row['id'];
-		$this->salt     = $row['salt'];
 		$this->passhash = $row['pass'];
+		$this->salt     = $row['salt'];
+		$this->name     = $row['name'];
 
 		# check login data
 		if (!password_verify($this->getSaltedPassword(), $this->passhash)) {
 			$this->nick     = null;
 			$this->password = null;
 			$this->id       = null;
-			$this->salt     = null;
 			$this->passhash = null;
+			$this->salt     = null;
+			$this->name     = null;
 			$this->loader->debugLog(__METHOD__, 'Cannot log in as user `' . $nick . '`, wrong password.', DEBUG_STATUS_WARNING);
 			return 2;
 		}
@@ -498,8 +520,8 @@ class User
 
 			# set $_COOKIE
 			if ($this->use_cookie) {
-				setcookie('user_id'     , $session_data['user_id'], time() + $this->cookie_time);
-				setcookie('session_hash', $session_data['hash']   , time() + $this->cookie_time);
+				setcookie('user_id'     , $session_data['user_id'], time() + $this->cookie_time, GLOBAL_ROOT);
+				setcookie('session_hash', $session_data['hash']   , time() + $this->cookie_time, GLOBAL_ROOT);
 			}
 		}
 
@@ -519,7 +541,7 @@ class User
 		                                      $this->session_time);
 		if (end($this->sessions)->checkSession($user_id, $session_hash) === 0) {
 			# get user info from the db
-			$stmt = $this->db->base->prepare('SELECT id, nick, pass, salt FROM user WHERE id = :id LIMIT 1');
+			$stmt = $this->db->base->prepare('SELECT id, nick, pass, salt, name FROM user WHERE id = :id LIMIT 1');
 			$stmt->execute(array(':id' => $user_id));
 			$row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
@@ -546,6 +568,7 @@ class User
 			$this->nick      = $row['nick'];
 			$this->passhash  = $row['pass'];
 			$this->salt      = $row['salt'];
+			$this->name      = $row['name'];
 			$this->logged_in = true;
 
 			$this->loader->debugLog(__METHOD__, 'Logged in as user `' . $this->nick . '` using session.', DEBUG_STATUS_OK);
@@ -602,12 +625,13 @@ class User
 			if ($this->use_session) {
 				# load user_id and session_hash, and remove then from session (and cookie)
 				if ($this->use_cookie) {
+					echo 'dsfdsfsdf';
 					$user_id      = $_SESSION['user_id']      ?: $_COOKIE['user_id'];
 					$session_hash = $_SESSION['session_hash'] ?: $_COOKIE['session_hash'];
+					setcookie('user_id'     , '', time() - 1, GLOBAL_ROOT);
+					setcookie('session_hash', '', time() - 1, GLOBAL_ROOT);
 					unset($_COOKIE['user_id']);
 					unset($_COOKIE['session_hash']);
-					setcookie('user_id'     , '', time() - 1);
-					setcookie('session_hash', '', time() - 1);
 				} else {
 					$user_id      = $_SESSION['user_id'];
 					$session_hash = $_SESSION['session_hash'];
@@ -636,6 +660,7 @@ class User
 			$this->salt      = null;
 			$this->password  = null;
 			$this->email     = null;
+			$this->name      = null;
 		}
 	}
 }

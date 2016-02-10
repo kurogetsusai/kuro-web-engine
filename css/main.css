@@ -32,15 +32,27 @@ footer {
 	color: #666;
 }
 
+.text-center {
+	text-align: center;
+}
+
 #top-bar {
 	display: block;
 	position: relative;
 	padding: 15px 20px;
-	box-shadow: 0 0 5px #111;
+	height: 26px;
 	z-index: 1000;
-	background: #191919;
-	color: #ccc;
+	box-shadow: 0 0 5px #191919;
+	background-color: #191919;
+	color: #eee;
 	text-align: right;
+}
+
+.top-bar-item,
+#top-bar-header {
+	display: inline-block;
+	margin: 0 8px;
+	vertical-align: top;
 }
 
 #top-bar-header {
@@ -56,19 +68,30 @@ footer {
 	text-decoration: none;
 }
 
-.top-bar-item,
-#top-bar-header {
-	display: inline-block;
-	margin: 0 8px;
-	vertical-align: middle;
+.top-bar-item {
+	padding-top: 4px;
 }
 
 #top-bar a {
 	color: #eee;
 }
 
-#top-bar-item-menu {
-	margin-top: 2px;
+#top-bar .popup-menu {
+	height: 30px;
+	overflow: hidden;
+	border-radius: 4px;
+	box-shadow: 0 0 5px #191919;
+	background-color: #191919;
+	text-align: center;
+}
+
+#top-bar .popup-menu:hover {
+	height: auto;
+}
+
+#top-bar .popup-menu > div {
+	padding: 10px;
+	line-height: 150%;
 }
 
 #page {
@@ -92,6 +115,7 @@ footer {
 	border-width: 1px 1px 1px 4px;
 	border-radius: 2px;
 	background-color: #fcfcfc;
+	text-align: left;
 }
 
 .info-box .notice {

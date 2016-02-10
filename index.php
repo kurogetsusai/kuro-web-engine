@@ -9,7 +9,7 @@
 //     - the .htaccess file                                                   //
 //                                                                            //
 //    Version     : 0.2.0.0                                                   //
-//    Code quality: 0.3456 wtf/h (6 WTFs during 17.3587 hours)                //
+//    Code quality: 0.3416 wtf/h (7 WTFs during 20.4917 hours)                //
 //                                                                            //
 ////////////////////////////////////////////////////////////////////////////////
 
