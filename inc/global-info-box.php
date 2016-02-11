@@ -12,6 +12,8 @@ if (COOKIE_ENABLE)
 function getRequestDataMsg($code)
 {
 	switch ($code) {
+	case 0:
+		return null;
 	case 10:
 		return array('error', '{t}PROCESS_REQUEST_DATA_SESSION_DEFAULT{/t}');
 	case 11:
@@ -52,9 +54,10 @@ function getRequestDataMsg($code)
 		return array('warning', '{t}PROCESS_REQUEST_DATA_REGISTER_SUCCESS_WRONG_PASS{/t}');
 	case 10009:
 		return array('warning', '{t}PROCESS_REQUEST_DATA_REGISTER_SUCCESS_CANNOT_SAVE_SESSION{/t}');
-	case 0:
+	case 11000:
+		return array('error', '{t}PROCESS_REQUEST_DATA_REGISTER_DIFFERENT_PASS{/t}');
 	default:
-		return null;
+		return array('error', '{t}PROCESS_REQUEST_DATA_DEFAULT{/t}');
 	}
 }
 

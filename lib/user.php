@@ -139,6 +139,13 @@ class User
 		return $this->name;
 	}
 
+	public function getUserDataFromDb(/* ??? */)
+	{
+		// TODO this function will replace some code in
+		// logInUsingPassword() and logInUsingSession(),
+		// the parameter should be $nick XOR $id
+	}
+
 	public function processRequestData()
 	{
 		# This function tries to log in using session.
@@ -234,8 +241,7 @@ class User
 			isset($_POST['register_email'])
 		) {
 			if ($_POST['register_password'] != $_POST['register_password_retype']) {
-				$this->login_msg = array('error', 'Can\'t register a new user – passwords are not the same!');
-				$login_status = false;
+				$result = 11000;
 			} else {
 				switch ($this->register($_POST['register_nick'], $_POST['register_password'], $_POST['register_email'], $_POST['register_name'])) {
 				case 0:
@@ -625,7 +631,6 @@ class User
 			if ($this->use_session) {
 				# load user_id and session_hash, and remove then from session (and cookie)
 				if ($this->use_cookie) {
-					echo 'dsfdsfsdf';
 					$user_id      = $_SESSION['user_id']      ?: $_COOKIE['user_id'];
 					$session_hash = $_SESSION['session_hash'] ?: $_COOKIE['session_hash'];
 					setcookie('user_id'     , '', time() - 1, GLOBAL_ROOT);
@@ -651,16 +656,16 @@ class User
 			}
 
 			# clear user data
-			$this->logged_in = false;
-			$this->login_msg = null;
-			$this->sessions  = [];
-			$this->id        = null;
-			$this->nick      = null;
-			$this->passhash  = null;
-			$this->salt      = null;
-			$this->password  = null;
-			$this->email     = null;
-			$this->name      = null;
+			$this->logged_in           = false;
+			$this->request_data_result = null;
+			$this->sessions            = [];
+			$this->id                  = null;
+			$this->nick                = null;
+			$this->passhash            = null;
+			$this->salt                = null;
+			$this->password            = null;
+			$this->email               = null;
+			$this->name                = null;
 		}
 	}
 }
