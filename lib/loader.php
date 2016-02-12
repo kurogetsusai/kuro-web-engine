@@ -15,6 +15,7 @@ define('DEBUG_STATUS_DEPRECATED'   , 6);
 class Loader
 {
 	private $actions = [];
+	private $http_code = 200;
 
 	public $param;
 
@@ -230,7 +231,7 @@ class Loader
 		if (SESSION_ENABLE)
 			$_SESSION['lang'] = $this->lang;
 		if (COOKIE_ENABLE)
-			setcookie('lang', $this->lang, time() + COOKIE_TIME);
+			setcookie('lang', $this->lang, time() + COOKIE_TIME, GLOBAL_ROOT);
 	}
 
 	public function remindLanguage()

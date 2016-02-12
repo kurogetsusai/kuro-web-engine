@@ -40,8 +40,7 @@ class User
 	#     and loc/* files. Don't forget to update register()'s comment.
 	# Want to add a new data, which should be known after each login?
 	#   - Add an optional or required data.
-	#   - Make sure your new data is loaded by logInUsingPassword() and
-	#     logInUsingSession().
+	#   - Make sure your new data is loaded by getUserDataFromDb().
 	# Don't forget to update user UI and loc/* files! And the database, ofc.
 
 	private function generateNewSalt()
@@ -73,7 +72,8 @@ class User
 		$stmt->execute(array(':nick' => $nick));
 		$row = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-		$this->nick = $nick;
+		if ($stmt->rowCount() === 1)
+			$this->nick = $row['nick'];
 		$this->id   = $row['id'];
 
 		//if ($this->id === null)
@@ -124,6 +124,11 @@ class User
 		return $this->request_data_result;
 	}
 
+	public function getId()
+	{
+		return $this->id;
+	}
+
 	public function getNick()
 	{
 		return $this->nick;
@@ -139,11 +144,67 @@ class User
 		return $this->name;
 	}
 
-	public function getUserDataFromDb(/* ??? */)
+	public function getNameOrNick()
 	{
-		// TODO this function will replace some code in
-		// logInUsingPassword() and logInUsingSession(),
-		// the parameter should be $nick XOR $id
+		return $this->name ?: $this->nick;
+	}
+
+	public function getUserDataFromDb($mode, $input)
+	{
+		# missing parameters = gtfo
+		if ($mode == null or $input == null)
+			return false;
+
+		# build the query
+		$query = 'SELECT id, nick, pass, salt, email, name FROM user WHERE ';
+		switch($mode) {
+		case 'nick':
+			$query .= 'LOWER(nick) = LOWER(:nick)';
+			break;
+		case 'id':
+			$query .= 'id = :id';
+			break;
+		default:
+			return false;	# invalid mode = gtfo
+		}
+		$query .= ' LIMIT 1';
+
+		# get user data
+		$stmt = $this->db->base->prepare($query);
+		$stmt->execute(array(':' . $mode => $input));
+		$row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+		# does the user exist?
+
+		# nope
+		if (!isset($row['id'])) {
+			$this->loader->debugLog(__METHOD__, 'Cannot get user `' . $input . '`\'s (that\'s their ' . $mode . ') data from the database.', DEBUG_STATUS_WARNING);
+			return false;
+		}
+
+		# yep
+		$this->id       = $row['id'];
+		$this->nick     = $row['nick'];
+		$this->passhash = $row['pass'];
+		$this->salt     = $row['salt'];
+		$this->email    = $row['email'];
+		$this->name     = $row['name'];
+			
+		return true;
+	}
+
+	public function clearUserData()
+	{
+		$this->logged_in           = false;
+		$this->request_data_result = null;
+		$this->sessions            = [];
+		$this->id                  = null;
+		$this->nick                = null;
+		$this->passhash            = null;
+		$this->salt                = null;
+		$this->password            = null;
+		$this->email               = null;
+		$this->name                = null;
 	}
 
 	public function processRequestData()
@@ -333,12 +394,8 @@ class User
 		}
 
 		# clear user data
-		if (!$this->isLoggedIn()) {
-			$this->nick     = null;
-			$this->password = null;
-			$this->email    = null;
-			$this->name     = null;
-		}
+		if (!$this->isLoggedIn())
+			$this->clearUserData();
 
 		return $ret;
 	}
@@ -356,7 +413,7 @@ class User
 			# user does not exists, register new user
 			if ($this->getUserIdFromDb($this->nick) === null) {
 				# prepare data (not all data is required)
-				$data_array;
+				$data_array = [];
 				if ($this->nick     !== null) $data_array[':nick']  = 'nick';
 				if ($this->passhash !== null) $data_array[':pass']  = 'pass';
 				if ($this->salt     !== null) $data_array[':salt']  = 'salt';
@@ -403,7 +460,7 @@ class User
 			$this->getUserIdFromDb($this->nick);
 			if ($id === $this->id) {
 				# prepare data
-				$data_array;
+				$data_array = [];
 				if ($this->nick     !== null) $data_array[':nick']  = 'nick';
 				if ($this->passhash !== null) $data_array[':pass']  = 'pass';
 				if ($this->salt     !== null) $data_array[':salt']  = 'salt';
@@ -459,33 +516,17 @@ class User
 		# 2 - wrong password
 		# 3 - OK, but cannot save session to database
 
-		# check if user with that nick exists
-		$stmt = $this->db->base->prepare('SELECT id, nick, pass, salt, name FROM user WHERE LOWER(nick) = LOWER(:nick) LIMIT 1');
-		$stmt->execute(array(':nick' => $nick));
-		$row = $stmt->fetch(\PDO::FETCH_ASSOC);
-
-		# nope
-		if ($row['id'] == '') {
+		# get user data (and check if he exists)
+		if (!$this->getUserDataFromDb('nick', $nick)) {
 			$this->loader->debugLog(__METHOD__, 'Cannot log in as user `' . $nick . '`, wrong nick.', DEBUG_STATUS_WARNING);
 			return 1;
 		}
 
-		# yep
-		$this->nick     = $nick;
 		$this->password = $password;
-		$this->id       = $row['id'];
-		$this->passhash = $row['pass'];
-		$this->salt     = $row['salt'];
-		$this->name     = $row['name'];
 
 		# check login data
 		if (!password_verify($this->getSaltedPassword(), $this->passhash)) {
-			$this->nick     = null;
-			$this->password = null;
-			$this->id       = null;
-			$this->passhash = null;
-			$this->salt     = null;
-			$this->name     = null;
+			$this->clearUserData();
 			$this->loader->debugLog(__METHOD__, 'Cannot log in as user `' . $nick . '`, wrong password.', DEBUG_STATUS_WARNING);
 			return 2;
 		}
@@ -545,19 +586,13 @@ class User
 		$this->sessions[] = new \Kuro\Session($this->loader,
 		                                      $this->db,
 		                                      $this->session_time);
-		if (end($this->sessions)->checkSession($user_id, $session_hash) === 0) {
-			# get user info from the db
-			$stmt = $this->db->base->prepare('SELECT id, nick, pass, salt, name FROM user WHERE id = :id LIMIT 1');
-			$stmt->execute(array(':id' => $user_id));
-			$row = $stmt->fetch(\PDO::FETCH_ASSOC);
-
-			# if there is no such user, then the session should be removed
-			# (it may happen if a user has been removed, but his sessions are still valid)
-			if (!isset($row['nick'])) {
-				$stmt = $this->db->base->prepare('DELETE FROM session WHERE user_id = :user_id AND hash = :hash');
-				$stmt->execute(array(':user_id' => $user_id,
-				                     ':hash'    => $session_hash));
-
+		end($this->sessions)->setUserIdAndSessionHash($user_id, $session_hash);
+		if (end($this->sessions)->checkSession() === 0) {
+			# get user data
+			if (!$this->getUserDataFromDb('id', $user_id)) {
+				# if there is no such user, then the session should be removed
+				# (it may happen if a user has been removed, but his sessions are still valid)
+				end($this->sessions)->delete();
 				unset($this->sessions[count($this->sessions) - 1]);
 
 				if ($this->use_session) {
@@ -569,12 +604,6 @@ class User
 				return 2;
 			}
 
-			# get user data
-			$this->id        = $user_id;
-			$this->nick      = $row['nick'];
-			$this->passhash  = $row['pass'];
-			$this->salt      = $row['salt'];
-			$this->name      = $row['name'];
 			$this->logged_in = true;
 
 			$this->loader->debugLog(__METHOD__, 'Logged in as user `' . $this->nick . '` using session.', DEBUG_STATUS_OK);
@@ -615,8 +644,8 @@ class User
 			if ($this->use_cookie) {
 				unset($_COOKIE['user_id']);
 				unset($_COOKIE['session_hash']);
-				setcookie('user_id'     , '', time() - 1);
-				setcookie('session_hash', '', time() - 1);
+				setcookie('user_id'     , '', time() - 1, GLOBAL_ROOT);
+				setcookie('session_hash', '', time() - 1, GLOBAL_ROOT);
 			}
 			$this->loader->debugLog(__METHOD__, 'Removed invalid session cookie.', DEBUG_STATUS_OK);
 		}
@@ -648,24 +677,14 @@ class User
 				$this->sessions[] = new \Kuro\Session($this->loader,
 				                                      $this->db,
 				                                      $this->session_time);
-				if (end($this->sessions)->checkSession($user_id, $session_hash) === 0) {
-					$stmt = $this->db->base->prepare('DELETE FROM session WHERE user_id = :user_id AND hash = :hash');
-					$stmt->execute(array(':user_id' => $user_id,
-					                     ':hash'    => $session_hash));
+				end($this->sessions)->setUserIdAndSessionHash($user_id, $session_hash);
+				if (end($this->sessions)->checkSession() === 0) {
+					end($this->sessions)->delete();
 				}
 			}
 
 			# clear user data
-			$this->logged_in           = false;
-			$this->request_data_result = null;
-			$this->sessions            = [];
-			$this->id                  = null;
-			$this->nick                = null;
-			$this->passhash            = null;
-			$this->salt                = null;
-			$this->password            = null;
-			$this->email               = null;
-			$this->name                = null;
+			$this->clearUserData();
 		}
 	}
 }
@@ -717,6 +736,12 @@ class Session {
 		             'browser_ua' => $this->browser_ua);
 	}
 
+	public function setUserIdAndSessionHash($user_id, $session_hash)
+	{
+		$this->user_id = $user_id;
+		$this->session_hash = $session_hash;
+	}
+
 	public function create($user_id, $user_nick, $user_salt)
 	{
 		# Return codes:
@@ -758,16 +783,22 @@ class Session {
 		return 0;
 	}
 
-	public function checkSession($user_id, $session_hash)
+	public function checkSession()
 	{
 		# Return codes:
 		# 0 - OK
 		# 1 - invalid session
 		# 2 - database error
+		# 3 - user_id or session_hash not set
+
+		if ($this->user_id == null or $this->session_hash == null) {
+			$this->loader->debugLog(__METHOD__, 'Cannot delete session: unknow user_id or session_hash.', DEBUG_STATUS_WARNING);
+			return 3;
+		}
 
 		$stmt = $this->db->base->prepare('SELECT COUNT(*) FROM session WHERE user_id = :user_id AND hash = :hash AND expire >= FROM_UNIXTIME(:expire)');
-		$stmt->execute(array(':user_id' => $user_id,
-		                     ':hash'    => $session_hash,
+		$stmt->execute(array(':user_id' => $this->user_id,
+		                     ':hash'    => $this->session_hash,
 		                     ':expire'  => time()));
 		$row = $stmt->fetchColumn();
 
@@ -775,12 +806,29 @@ class Session {
 			$this->loader->debugLog(__METHOD__, 'Database error: bad query.', DEBUG_STATUS_WARNING);
 			return 2;
 		} elseif ($row === '0') {
-			$this->loader->debugLog(__METHOD__, 'Session `' . $session_hash . '` is invalid.', DEBUG_STATUS_WARNING);
+			$this->loader->debugLog(__METHOD__, 'Session `' . $this->session_hash . '` is invalid.', DEBUG_STATUS_WARNING);
 			return 1;
 		} else {
-			$this->user_id = $user_id;
-			$this->hash    = $session_hash;
 			return 0;
+		}
+	}
+
+	public function delete()
+	{
+		if ($this->user_id == null or $this->session_hash == null) {
+			$this->loader->debugLog(__METHOD__, 'Cannot delete session: unknow user_id or session_hash.', DEBUG_STATUS_WARNING);
+			return false;
+		}
+
+		$stmt = $this->db->base->prepare('DELETE FROM session WHERE user_id = :user_id AND hash = :hash');
+		$stmt->execute(array(':user_id' => $this->user_id,
+		                     ':hash'    => $this->session_hash));
+
+		if ($stmt->rowCount() < 1) {
+			$this->loader->debugLog(__METHOD__, 'Cannot delete session `' . $this->session_hash . '`, wrong number of affected rows after query to database: `' . $stmt->rowCount() . '`', DEBUG_STATUS_WARNING);
+			return false;
+		} else {
+			return true;
 		}
 	}
 }

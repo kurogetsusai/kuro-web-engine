@@ -3,13 +3,11 @@ global $loader;
 global $db;
 
 // TODO getUserDataFromDb() doesn't work yet
-#$public_user = new \Kuro\User($loader, $db);
-#if ($public_user->getUserDataFromDb($loader->param[1]) === null) {
-#	// TODO redirect to 404, dont forget to return http 404
-#	header('Location: ' . GLOBAL_ROOT);
-#	exit();
-#}
-
+$public_user = new \Kuro\User($loader, $db);
+if (!isset($loader->param[1]) or !$public_user->getUserDataFromDb('nick', $loader->param[1])) {
+	$loader->http_code = 404;
+	$loader->loadTranslatedModule('page/error');
+} else {
 ?>
 <!DOCTYPE html>
 <html lang="{t}GLOBAL_LANG{/t}">
@@ -21,8 +19,15 @@ global $db;
 <?php $loader->loadTranslatedModule('inc/global-header'); ?>
 	<main id="page">
 <?php $loader->loadTranslatedModule('inc/global-info-box'); ?>
-		<h1><?= $loader->param[1] ?></h1>
+		<h1><?= $public_user->getNameOrNick() ?></h1>
+		<p>
+		ID: <?= $public_user->getId() ?><br>
+		Nick: <?= $public_user->getNick() ?><br>
+		E-mail: <?= $public_user->getEmail() ?><br>
+		Name: <?= $public_user->getName() ?><br>
+		</p>
 	</main>
 <?php $loader->loadTranslatedModule('inc/global-footer'); ?>
 </body>
 </html>
+<?php } ?>

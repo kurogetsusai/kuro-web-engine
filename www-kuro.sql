@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS `user` (
 --
 
 INSERT INTO `user` (`id`, `nick`, `pass`, `salt`, `email`, `name`) VALUES
-(1, 'root', '$2y$11$FSu9ilHN.QtIL6pqLgHFPurdxmMLutqAQrKBgIqsaRRiMpx5VPEYy', '}.ftqrN:99+1ATy!iB;)#;`CMnte+uiM', 'root@localhost', '');
+(0, 'root', '$2y$11$FSu9ilHN.QtIL6pqLgHFPurdxmMLutqAQrKBgIqsaRRiMpx5VPEYy', '}.ftqrN:99+1ATy!iB;)#;`CMnte+uiM', 'root@localhost', 'Charlie Root');
 
 --
 -- Indexes for dumped tables
@@ -86,7 +86,7 @@ ALTER TABLE `session`
 -- AUTO_INCREMENT for table `user`
 --
 ALTER TABLE `user`
-  MODIFY `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,AUTO_INCREMENT=1000;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;

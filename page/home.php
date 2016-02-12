@@ -25,6 +25,8 @@ global $user;
 #        $r = hash($v, $data, false);
 #        printf("%-12s %3d %s\n", $v, strlen($r), $r);
 #}
+gethostbyaddr($_SERVER['REMOTE_ADDR']);
+echo microtime(true) - $_SERVER['REQUEST_TIME_FLOAT'];
 ?>
 		</pre>
 	</main>
